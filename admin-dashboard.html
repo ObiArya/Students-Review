@@ -5,18 +5,28 @@
     <title>OSIS Feedback Results</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; background: #f8fafc; padding: 2rem; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; padding: 2rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 10px; }
+        
+        /* Filter Styles */
+        .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; }
+        select { padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; }
+
         .feedback-grid { display: grid; gap: 1rem; }
-        .card { background: white; padding: 1.5rem; border-radius: 0.75rem; border-left: 6px solid #3b82f6; shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card { background: white; padding: 1.5rem; border-radius: 0.75rem; border-left: 6px solid #3b82f6; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        
         .category-tag { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
         .timestamp { font-size: 0.8rem; color: #64748b; margin-top: 10px; display: block; }
+        
+        /* Delete Button Style */
+        .delete-btn { position: absolute; top: 15px; right: 15px; background: #fee2e2; color: #b91c1c; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; }
+        .delete-btn:hover { background: #fca5a5; }
+
         .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
     </style>
 </head>
 <body>
     <script>
-        // SECURITY CHECK: Redirect to login if not authenticated
         if (sessionStorage.getItem('isAdmin') !== 'true') {
             window.location.href = 'admin-login.html';
         }
@@ -24,7 +34,17 @@
 
     <div class="header">
         <h1>Student Feedback List</h1>
-        <button class="logout-btn" onclick="logout()">Logout</button>
+        <div class="controls">
+            <label for="filterCategory">Filter:</label>
+            <select id="filterCategory" onchange="fetchFeedback()">
+                <option value="ALL">All Categories</option>
+                <option value="TEACHING">Teaching & Learning</option>
+                <option value="FACILITIES">School Facilities</option>
+                <option value="PROGRAMS">School Programs</option>
+                <option value="SERVICES">SC Work</option>
+            </select>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
     </div>
 
     <div id="feedbackContainer" class="feedback-grid">
@@ -33,30 +53,58 @@
 
     <script>
         const SB_URL = "https://nefgthsnpqrbzymyqexe.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lZmd0aHNucHFyYnp5bXlxZXhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDM5NjIsImV4cCI6MjA5MTY3OTk2Mn0.30VBtyM4AW22JgjpqBmWTxz9br2z5AL__NAnyKRj5Ng"; // Use the 'anon' key here
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lZmd0aHNucHFyYnp5bXlxZXhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDM5NjIsImV4cCI6MjA5MTY3OTk2Mn0.30VBtyM4AW22JgjpqBmWTxz9br2z5AL__NAnyKRj5Ng"; 
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
         async function fetchFeedback() {
-            const { data, error } = await _supabase
+            const selectedFilter = document.getElementById('filterCategory').value;
+            const container = document.getElementById('feedbackContainer');
+            
+            let { data, error } = await _supabase
                 .from('feedback_osis')
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            const container = document.getElementById('feedbackContainer');
             if (error) { 
                 container.innerHTML = "Error loading data."; 
                 return; 
+            }
+
+            // Client-side Filtering
+            if (selectedFilter !== "ALL") {
+                data = data.filter(item => item.Feedback.includes(`[${selectedFilter}]`));
+            }
+
+            if (data.length === 0) {
+                container.innerHTML = "<p>No feedback found for this category.</p>";
+                return;
             }
 
             container.innerHTML = "";
             data.forEach(item => {
                 container.innerHTML += `
                     <div class="card">
+                        <button class="delete-btn" onclick="deleteFeedback(${item.id})">Delete</button>
                         <span class="category-tag">OSIS RECEIPT</span>
                         <p style="margin: 10px 0;">${item.Feedback}</p>
                         <small class="timestamp">Submitted on: ${new Date(item.created_at).toLocaleString()}</small>
                     </div>`;
             });
+        }
+
+        async function deleteFeedback(id) {
+            if (confirm("Are you sure you want to delete this feedback?")) {
+                const { error } = await _supabase
+                    .from('feedback_osis')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    alert("Error deleting: " + error.message);
+                } else {
+                    fetchFeedback(); // Refresh the list
+                }
+            }
         }
 
         function logout() {
