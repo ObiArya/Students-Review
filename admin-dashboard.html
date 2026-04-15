@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OSIS Feedback Results</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; background: #f8fafc; padding: 2rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .feedback-grid { display: grid; gap: 1rem; }
+        .card { background: white; padding: 1.5rem; border-radius: 0.75rem; border-left: 6px solid #3b82f6; shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .category-tag { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .timestamp { font-size: 0.8rem; color: #64748b; margin-top: 10px; display: block; }
+        .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <script>
+        // SECURITY CHECK: Redirect to login if not authenticated
+        if (sessionStorage.getItem('isAdmin') !== 'true') {
+            window.location.href = 'admin-login.html';
+        }
+    </script>
+
+    <div class="header">
+        <h1>Student Feedback List</h1>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <div id="feedbackContainer" class="feedback-grid">
+        <p>Loading feedback...</p>
+    </div>
+
+    <script>
+        const SB_URL = "https://nefgthsnpqrbzymyqexe.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lZmd0aHNucHFyYnp5bXlxZXhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDM5NjIsImV4cCI6MjA5MTY3OTk2Mn0.30VBtyM4AW22JgjpqBmWTxz9br2z5AL__NAnyKRj5Ng"; // Use the 'anon' key here
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+        async function fetchFeedback() {
+            const { data, error } = await _supabase
+                .from('feedback_osis')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            const container = document.getElementById('feedbackContainer');
+            if (error) { 
+                container.innerHTML = "Error loading data."; 
+                return; 
+            }
+
+            container.innerHTML = "";
+            data.forEach(item => {
+                container.innerHTML += `
+                    <div class="card">
+                        <span class="category-tag">OSIS RECEIPT</span>
+                        <p style="margin: 10px 0;">${item.Feedback}</p>
+                        <small class="timestamp">Submitted on: ${new Date(item.created_at).toLocaleString()}</small>
+                    </div>`;
+            });
+        }
+
+        function logout() {
+            sessionStorage.removeItem('isAdmin');
+            window.location.href = 'admin-login.html';
+        }
+
+        fetchFeedback();
+    </script>
+</body>
+</html>
